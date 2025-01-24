@@ -1,0 +1,47 @@
+pipeline {
+  agent any
+ 
+  environment {
+    AWS_ACCESS_KEY_ID = credentials('AKIAQ4NXP6COWHX44J7V')
+    AWS_SECRET_ACCESS_KEY = credentials('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')
+    K8S_CONFIG_PATH = '/home/ubuntu/.kube/config'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        // Checkout code from GitHub repository
+        checkout scm
+      }
+    }
+
+    stage('Build') {
+      steps {
+        script {
+          // Terraform initialization and apply
+          sh 'terraform init'  // Initializes Terraform working directory
+          sh 'terraform apply -auto-approve'  // Applies the changes (no manual approval)
+        }
+      }
+    }
+
+    stage('Deploy to Kubernetes') {
+      steps {
+        script {
+          // Configure kubectl to communicate with the EKS cluster
+          sh 'aws eks --region us-west-2 update-kubeconfig --name eks-cluster'
+
+          // Deploy the application using kubectl
+          sh 'kubectl apply -f k8s/deployment.yaml'
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      // Clean up resources or notify users in case of failure/success
+      echo 'Pipeline finished!'
+    }
+  }
+}
